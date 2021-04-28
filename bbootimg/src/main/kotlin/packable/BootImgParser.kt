@@ -24,27 +24,22 @@ class BootImgParser() : IPackable {
 
     override fun unpack(fileName: String) {
         cleanUp()
-        try {
-            val hv = probeHeaderVersion(fileName)
-            log.info("header version $hv")
-            if (hv in 0..2) {
-                val b2 = BootV2
-                    .parse(fileName)
-                    .extractImages()
-                    .extractVBMeta()
-                    .printSummary()
-                log.debug(b2.toString())
-            } else {
-                val b3 = BootV3
-                    .parse(fileName)
-                    .extractImages()
-                    .extractVBMeta()
-                    .printSummary()
-                log.debug(b3.toString())
-            }
-        } catch (e: IllegalArgumentException) {
-            log.error(e.message)
-            log.error("Parser can not continue")
+        val hv = probeHeaderVersion(fileName)
+        log.info("header version $hv")
+        if (hv in 0..2) {
+            val b2 = BootV2
+                .parse(fileName)
+                .extractImages()
+                .extractVBMeta()
+                .printSummary()
+            log.debug(b2.toString())
+        } else {
+            val b3 = BootV3
+                .parse(fileName)
+                .extractImages()
+                .extractVBMeta()
+                .printSummary()
+            log.debug(b3.toString())
         }
     }
 
@@ -68,7 +63,7 @@ class BootImgParser() : IPackable {
                 .let {
                     val tab = AsciiTable().let { tab ->
                         tab.addRule()
-                        val outFileSuffix = if (File(Avb.getJsonFileName(it.info.output)).exists()) ".signed" else ""
+                        val outFileSuffix = if (File(Avb.getJsonFileName(it.info.output)).exists()) ".signed" else ".clear"
                         tab.addRow("${it.info.output}${outFileSuffix} is ready")
                         tab.addRule()
                         tab
