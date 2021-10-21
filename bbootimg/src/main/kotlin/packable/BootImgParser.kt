@@ -19,7 +19,6 @@ import cfig.Avb
 import cfig.bootimg.Common.Companion.probeHeaderVersion
 import cfig.bootimg.v2.BootV2
 import cfig.bootimg.v3.BootV3
-import cfig.helper.Helper
 import com.fasterxml.jackson.databind.ObjectMapper
 import de.vandermeer.asciitable.AsciiTable
 import org.slf4j.LoggerFactory
@@ -29,7 +28,6 @@ import java.io.FileInputStream
 class BootImgParser : IPackable {
     override val loopNo: Int
         get() = 0
-    private val workDir = Helper.prop("workDir")
 
     override fun capabilities(): List<String> {
         return listOf("^boot\\.img$", "^recovery\\.img$", "^recovery-two-step\\.img$")
@@ -57,7 +55,7 @@ class BootImgParser : IPackable {
     }
 
     override fun pack(fileName: String) {
-        val cfgFile = workDir + fileName.removeSuffix(".img") + ".json"
+        val cfgFile = outDir + fileName.removeSuffix(".img") + ".json"
         log.info("Loading config from $cfgFile")
         if (!File(cfgFile).exists()) {
             val tab = AsciiTable().let {
@@ -69,6 +67,7 @@ class BootImgParser : IPackable {
             log.info("\n{}", tab.render())
             return
         }
+
         if (3 == probeHeaderVersion(fileName)) {
             ObjectMapper().readValue(File(cfgFile), BootV3::class.java)
                 .pack()
@@ -87,8 +86,22 @@ class BootImgParser : IPackable {
             ObjectMapper().readValue(File(cfgFile), BootV2::class.java)
                 .pack()
                 .sign()
+
+        when (val hv = probeHeaderVersion(fileName)) {
+            0, 1, 2 ->
+                ObjectMapper().readValue(File(cfgFile), BootV2::class.java)
+                    .pack()
+                    .sign()
+                    .updateVbmeta()
+                    .printPackSummary()
+            3, 4 ->
+                ObjectMapper().readValue(File(cfgFile), BootV3::class.java)
+                    .pack()
+                    .sign(fileName)
+                    .updateVbmeta()
+                    .printPackSummary()
+            else -> throw IllegalArgumentException("do not support header version $hv")
         }
-        Avb.updateVbmeta(fileName)
     }
 
     override fun flash(fileName: String, deviceName: String) {
