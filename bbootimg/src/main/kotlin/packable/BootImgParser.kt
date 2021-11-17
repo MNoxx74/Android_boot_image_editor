@@ -30,7 +30,7 @@ class BootImgParser : IPackable {
         get() = 0
 
     override fun capabilities(): List<String> {
-        return listOf("^boot\\.img$", "^recovery\\.img$", "^recovery-two-step\\.img$")
+        return listOf("^boot(-debug)?\\.img$", "^recovery\\.img$", "^recovery-two-step\\.img$")
     }
 
     override fun unpack(fileName: String) {
@@ -67,26 +67,6 @@ class BootImgParser : IPackable {
             log.info("\n{}", tab.render())
             return
         }
-
-        if (3 == probeHeaderVersion(fileName)) {
-            ObjectMapper().readValue(File(cfgFile), BootV3::class.java)
-                .pack()
-                .sign(fileName)
-                .let {
-                    val tab = AsciiTable().let { tab ->
-                        tab.addRule()
-                        val outFileSuffix = if (File(Avb.getJsonFileName(it.info.output)).exists()) ".signed" else ".clear"
-                        tab.addRow("${it.info.output}${outFileSuffix} is ready")
-                        tab.addRule()
-                        tab
-                    }
-                    log.info("\n{}", tab.render())
-                }
-        } else {
-            ObjectMapper().readValue(File(cfgFile), BootV2::class.java)
-                .pack()
-                .sign()
-
         when (val hv = probeHeaderVersion(fileName)) {
             0, 1, 2 ->
                 ObjectMapper().readValue(File(cfgFile), BootV2::class.java)
